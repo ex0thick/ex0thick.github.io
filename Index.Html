@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Head Pet & Peach</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            overflow: hidden;
+        }
+        #container {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #mainImage, #peachEmoji {
+            max-width: 200px;
+            height: auto;
+            cursor: pointer; /* Hand cursor on desktop */
+            user-select: none;
+            transition: transform 0.1s ease; /* Smooth cursor-follow movement */
+            animation: popUp 0.5s ease-in-out; /* Initial pop on load */
+        }
+        #peachEmoji {
+            font-size: 100px;
+            display: inline-block;
+            transition: filter 0.3s ease; /* Smooth filter transition */
+        }
+        /* Hand cursor for mobile */
+        @media (pointer: coarse) {
+            #mainImage, #peachEmoji {
+                cursor: pointer;
+            }
+        }
+        .counter {
+            position: absolute;
+            top: -50px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #ff6f61;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #ff4f41;
+        }
+        input[type="range"] {
+            width: 200px;
+            margin-top: 20px;
+        }
+        /* Pop animations based on click position */
+        @keyframes popDown {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(20px) scale(1.1); }
+            100% { transform: translateY(0); }
+        }
+        @keyframes popLeft {
+            0% { transform: translateX(0); }
+            50% { transform: translateX(-20px) scale(1.1); }
+            100% { transform: translateX(0); }
+        }
+        @keyframes popRight {
+            0% { transform: translateX(0); }
+            50% { transform: translateX(20px) scale(1.1); }
+            100% { transform: translateX(0); }
+        }
+        @keyframes popUp {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-20px) scale(1.1); }
+            100% { transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div id="container">
+            <div class="counter">Head Pets: {{ headPetCount }} | Peach Touches: {{ peachCount }}</div>
+            <img v-if="mode === 'headPet'" id="mainImage" :src="currentImage" alt="Girl Image" :style="{ transform: transformStyle }">
+            <span v-else id="peachEmoji" :style="{ transform: transformStyle, filter: peachFilter }">ðŸ‘</span>
+            <div class="controls">
+                <button @click="setMode('headPet')">Head Pet</button>
+                <button @click="setMode('peach')">Peach</button>
+            </div>
+            <input type="range" v-model="scale" min="0.5" max="2" step="0.1">
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    mode: 'headPet', // 'headPet' or 'peach'
+                    headPetCount: 0,
+                    peachCount: 0,
+                    scale: 1,
+                    currentImage: 'https://raw.githubusercontent.com/ex0thick/Pet/refs/heads/main/132581622_p0_master1200.webp', // Placeholder for girl image
+                    images: {
+                        common: 'https://raw.githubusercontent.com/ex0thick/Pet/refs/heads/main/132581622_p0_master1200.webp', // Replace with your image paths
+                        happy: 'https://raw.githubusercontent.com/ex0thick/Pet/refs/heads/main/133071431_p0_master1200.webp',
+                        annoyed: 'https://raw.githubusercontent.com/ex0thick/Pet/refs/heads/main/132581622_p0_master1200.webp'
+                    },
+                    peachFilter: '', // CSS filter for peach emoji
+                    holdStart: null, // Track hold time
+                    interactionCount: 0, // Track interactions for girl state
+                    xOffset: 0, // Cursor-follow offset
+                    yOffset: 0
+                };
+            },
+            computed: {
+                transformStyle() {
+                    return `scale(${this.scale}) translate(${this.xOffset}px, ${this.yOffset}px)`;
+                }
+            },
+            methods: {
+                setMode(mode) {
+                    this.mode = mode;
+                    this.peachFilter = ''; // Reset filter when switching
+                    const element = this.mode === 'headPet' ? document.getElementById('mainImage') : document.getElementById('peachEmoji');
+                    element.style.animation = 'popUp 0.5s ease-in-out'; // Pop when switching
+                    this.vibrate(200); // Vibrate on mode change
+                },
+                updateGirlState() {
+                    this.interactionCount++;
+                    if (this.interactionCount > 10) {
+                        this.currentImage = this.images.annoyed;
+                    } else if (this.interactionCount > 5) {
+                        this.currentImage = this.images.happy;
+                    } else {
+                        this.currentImage = this.images.common;
+                    }
+                },
+                handleClick(event) {
+                    const element = this.mode === 'headPet' ? document.getElementById('mainImage') : document.getElementById('peachEmoji');
+                    const rect = element.getBoundingClientRect();
+                    const x = event.clientX - rect.left;
+                    const y = event.clientY - rect.top;
+                    const width = rect.width;
+                    const height = rect.height;
+
+                    let animation = 'popDown';
+                    let filter = '';
+
+                    // Determine click position
+                    if (y < height * 0.3) { // Top (head)
+                        animation = 'popDown';
+                        filter = 'hue-rotate(0deg) brightness(1.2)';
+                    } else if (x < width * 0.3) { // Left cheek/side
+                        animation = 'popLeft';
+                        filter = 'hue-rotate(0deg) brightness(1.2) drop-shadow(-10px 0 10px red)';
+                    } else if (x > width * 0.7) { // Right cheek/side
+                        animation = 'popRight';
+                        filter = 'hue-rotate(0deg) brightness(1.2) drop-shadow(10px 0 10px red)';
+                    } else if (y > height * 0.7) { // Under mouth/bottom
+                        animation = 'popUp';
+                        filter = 'hue-rotate(0deg) brightness(1.2) drop-shadow(0 10px 10px red)';
+                    }
+
+                    // Apply animation
+                    element.style.animation = 'none';
+                    setTimeout(() => {
+                        element.style.animation = `${animation} 0.5s ease-in-out`;
+                    }, 10);
+
+                    // Apply filter for peach and update counts
+                    if (this.mode === 'peach') {
+                        this.peachFilter = filter;
+                        this.peachCount++;
+                    } else {
+                        this.headPetCount++;
+                        this.updateGirlState();
+                    }
+                },
+                startHold() {
+                    this.holdStart = Date.now();
+                },
+                endHold() {
+                    if (this.holdStart) {
+                        const holdTime = Date.now() - this.holdStart;
+                        const vibrationStrength = Math.min(holdTime, 1000); // Cap at 1000ms
+                        this.vibrate(vibrationStrength);
+                        this.holdStart = null;
+                    }
+                },
+                vibrate(duration) {
+                    if ('vibrate' in navigator) {
+                        navigator.vibrate(duration);
+                    }
+                },
+                followCursor(event) {
+                    const element = this.mode === 'headPet' ? document.getElementById('mainImage') : document.getElementById('peachEmoji');
+                    const rect = element.getBoundingClientRect();
+                    const x = event.clientX - rect.left - rect.width / 2;
+                    const y = event.clientY - rect.top - rect.height / 2;
+                    // Limit movement to subtle effect
+                    this.xOffset = Math.max(-20, Math.min(20, x / 10));
+                    this.yOffset = Math.max(-20, Math.min(20, y / 10));
+                }
+            },
+            watch: {
+                scale() {
+                    const element = this.mode === 'headPet' ? document.getElementById('mainImage') : document.getElementById('peachEmoji');
+                    element.style.transform = this.transformStyle;
+                },
+                mode() {
+                    const element = this.mode === 'headPet' ? document.getElementById('mainImage') : document.getElementById('peachEmoji');
+                    element.style.transform = this.transformStyle;
+                }
+            },
+            mounted() {
+                const element = this.mode === 'headPet' ? document.getElementById('mainImage') : document.getElementById('peachEmoji');
+                element.addEventListener('mousedown', this.startHold);
+                element.addEventListener('mouseup', this.endHold);
+                element.addEventListener('touchstart', this.startHold);
+                element.addEventListener('touchend', this.endHold);
+                element.addEventListener('click', this.handleClick.bind(this));
+                document.addEventListener('mousemove', this.followCursor.bind(this));
+                document.addEventListener('touchmove', (e) => {
+                    const touch = e.touches[0];
+                    this.followCursor({ clientX: touch.clientX, clientY: touch.clientY });
+                });
+                this.vibrate(200); // Initial vibration
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
